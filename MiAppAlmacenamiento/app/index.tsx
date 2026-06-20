@@ -1,51 +1,52 @@
+
 import React, { useState } from 'react';
 import { StyleSheet, View, Button, Text, ActivityIndicator, Alert } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { supabase } from '../lib/storageClient';
 
 export default function HomeScreen() {
   const [uploading, setUploading] = useState(false);
 
-  const uploadFileToSupabase = async (fileUri: string, fileName: string) => {
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
-
-    const { data, error } = await supabase.storage
-      .from('tu-nombre-de-bucket') // Asegúrate de cambiar esto por tu bucket real
-      .upload(fileName, blob, {
-        contentType: 'image/png', 
-        upsert: true,
-      });
-
-    if (error) throw error;
-    return data;
-  };
-
   const pickAndUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({});
       
-      if (!result.canceled) {
-        setUploading(true);
-        const file = result.assets[0];
-        await uploadFileToSupabase(file.uri, file.name);
-        Alert.alert('Éxito', 'Archivo subido correctamente');
-      }
-    } catch (error: any) {
-    console.error("Error completo:", error); // Esto se verá en tu terminal de VS Code
-    Alert.alert('Error', error.message || 'No se pudo subir el archivo');
-  }
+      if (result.canceled) return;
+
+      setUploading(true);
+      const file = result.assets[0];
+
+      const response = await fetch(file.uri);
+      const blob = await response.blob();
+
+      const { error } = await supabase.storage
+        .from('TU_NOMBRE_DE_BUCKET')
+        .upload(file.name, blob, {
+          contentType: file.mimeType || 'application/octet-stream',
+          upsert: true,
+        });
+
+      if (error) throw error;
+      Alert.alert('Éxito', 'Archivo subido correctamente');
+   } catch (error: any) {
+
+      console.log("--- ERROR DETALLADO ---");
+      console.log(JSON.stringify(error, null, 2));
+      
+      Alert.alert('Error', error.message || 'Error desconocido');
+    } finally {
+   
+      setUploading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Subir Archivo a Supabase</Text>
+      <Text style={styles.title}>Subir Archivo</Text>
       {uploading ? (
         <ActivityIndicator size="large" />
       ) : (
-        <Button title="Seleccionar y Subir Archivo" onPress={pickAndUpload} />
+        <Button title="Seleccionar y Subir" onPress={pickAndUpload} />
       )}
     </View>
   );
